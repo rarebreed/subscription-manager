@@ -16,9 +16,10 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with Cockpit; If not, see <http://www.gnu.org/licenses/>.
  */
-const cockpit = require("cockpit");
+import * as CP from '../src/types/cockpit.types' 
+const cockpit: CP.Cockpit = require("cockpit");
 const service = cockpit.dbus('com.redhat.RHSM1', {'superuser': 'require'});
-const configService = service.proxy('com.redhat.RHSM1.Config', '/com/redhat/RHSM1/Config');
+const configService: CP.ConfigServiceProxy = service.proxy('com.redhat.RHSM1.Config', '/com/redhat/RHSM1/Config');
 const registerServer = service.proxy('com.redhat.RHSM1.RegisterServer', '/com/redhat/RHSM1/RegisterServer');
 const attachService = service.proxy('com.redhat.RHSM1.Attach', '/com/redhat/RHSM1/Attach');
 const entitlementService = service.proxy('com.redhat.RHSM1.Entitlement', '/com/redhat/RHSM1/Entitlement');
@@ -27,23 +28,42 @@ const productsService = service.proxy('com.redhat.RHSM1.Products', '/com/redhat/
 const legacyService = cockpit.dbus('com.redhat.SubscriptionManager');  // FIXME replace?
 const _ = cockpit.gettext;
 
+export interface SubscriptionStatus {
+    serviceStatus: string | undefined;
+    status: string | undefined;
+    products: any[];  // FIXME: what is this type?
+    error: string | undefined;
+}
+
+export interface ClientConfig {
+    loaded: boolean;
+}
+
+
+export type SubmanClient = {
+    subscriptionStatus: SubscriptionStatus,
+    config: ClientConfig
+}
+
 // FIXME: This global state needs to be replaced, either with some rxjs streams, mobx, or redux
-const client = {};
+const userLang = navigator.language;
 
-const userLang = navigator.language || navigator.userLanguage;
+const defaultClient = ():SubmanClient  => {
+    return {
+        subscriptionStatus: {
+            serviceStatus: undefined,
+            status: undefined,
+            products: [],
+            error: undefined,
+        },
+        config: {
+            loaded: false
+        }
+    }
+}
 
-cockpit.event_target(client);
-
-client.subscriptionStatus = {
-    serviceStatus: undefined,
-    status: undefined,
-    products: [],
-    error: undefined,
-};
-
-client.config = {
-    loaded: false,
-};
+const client: SubmanClient = defaultClient()
+cockpit.event_target(client)
 
 const RHSM_DEFAULTS = { // TODO get these from a d-bus service instead
     hostname: 'subscription.rhsm.redhat.com',
@@ -58,20 +78,15 @@ const RHSM_DEFAULTS = { // TODO get these from a d-bus service instead
 // So, are we trying to rerender the react components because the underlying state in the model has changed?  If so, then
 // we should be letting react handle the actual rendering (via a component's render function), and state can be handled
 // with rxjs, mobx or redux
-function needRender() {
-    let ev = document.createEvent("Event");
-    ev.initEvent("dataChanged", false, false);
-    client.dispatchEvent(ev);
-}
+
 
 /* we trigger status update via dbus
  * if we don't get a timely reply, consider subscription-manager failure
  */
-let updateTimeout;
 
-function parseProducts(text) {
-    const products = JSON.parse(text);
-    return products.map(function(product) {
+function parseProducts(text: string) {
+    const products: string[] = JSON.parse(text);
+    return products.map((product: string) => {
         return {
             'productName': product[0],
             'productId': product[1],
@@ -84,12 +99,17 @@ function parseProducts(text) {
     });
 }
 
+interface DBusError {
+    exception: string
+    message: string
+}
+
 // Error message produced by D-Bus API should be string containing
 // regular JSON with following format:
 // {"exception": "NameOfException", "message": "Some error message"}
 // Only message should be reported to user.
-function parseErrorMessage(error) {
-    let err;
+function parseErrorMessage(error: string): string | DBusError {
+    let err: DBusError | string;
     try {
         err = JSON.parse(error).message;
     } catch (parse_err) {

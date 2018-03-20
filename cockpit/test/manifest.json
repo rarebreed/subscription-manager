@@ -1,0 +1,13 @@
+{
+    "version": "0.1",
+    "requires": {
+        "cockpit": "137"
+    },
+
+    "tools": {
+        "index": {
+            "label": "cockpit-test",
+            "path": "SpecRunner.html"
+        }
+    }
+}

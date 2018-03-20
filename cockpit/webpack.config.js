@@ -7,7 +7,7 @@ const ExtractTextPlugin = require("extract-text-webpack-plugin");
 const glob = require("glob");
 const po2json = require("po2json");
 
-var externals = {
+const externals = {
     "cockpit": "cockpit",
 };
 
@@ -20,8 +20,9 @@ const nodedir = path.resolve((process.env.SRCDIR || __dirname), "node_modules");
 
 /* A standard nodejs and webpack pattern */
 var production = process.env.NODE_ENV === 'production';
+const TESTING = process.env.NODE_ENV === "testing";
 
-var info = {
+let info = {
     entries: {
         "index": [
             "./index.js",
@@ -37,11 +38,11 @@ var info = {
 
 if (!production) {
     info.entries["dbus-testing"] = [
-      "spec/dbus/dbus.test.js"
+      "test/spec/dbus/dbus.test.js"
     ]
 }
 
-var output = {
+let output = {
     path: distdir,
     filename: "[name].js",
     sourceMapFilename: "[file].map",
@@ -197,6 +198,10 @@ module.exports = {
                 exclude: /node_modules/,
                 loader: 'jshint-loader',
                 test: /\.es6$/
+            },
+            { 
+                test: /\.tsx?$/, 
+                use: "ts-loader" 
             },
             {
                 exclude: /node_modules/,
