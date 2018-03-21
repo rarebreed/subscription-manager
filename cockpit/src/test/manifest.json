@@ -9,5 +9,6 @@
             "label": "cockpit-test",
             "path": "SpecRunner.html"
         }
-    }
+    },
+    "content-security-policy": "default-src 'self' 'unsafe-inline' 'unsafe-eval'"
 }
