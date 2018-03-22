@@ -8,10 +8,11 @@
   "license": "LGPL-2.1",
   "scripts": {
     "build": "webpack",
+    "install": "export NODE_ENV=testing && yarn run clean && yarn run webpack && ./cockpit-link.sh",
     "po2json": "po2json",
     "vagrant-watch": "webpack --watch & vagrant rsync-auto",
     "watch": "webpack --watch",
-    "clean": "cd ./dist && rm -rf *",
+    "clean": "rm -rf ./dist*",
     "test": "jest"
   },
   "devDependencies": {

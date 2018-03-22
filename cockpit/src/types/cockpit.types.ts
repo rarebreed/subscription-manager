@@ -88,9 +88,9 @@ export interface RegisterServiceProxy extends DBusProxy {
 // _Service classes that extend BaseService
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-abstract class BaseService<P extends DBusProxy, T> {
+abstract class BaseService<P extends DBusProxy> {
     proxy: DBusProxy
-    stream: Observable<T>
+    stream: Observable<void>
 
     constructor(proxy: P) {
         this.proxy = proxy
@@ -99,14 +99,14 @@ abstract class BaseService<P extends DBusProxy, T> {
 }
 
 export
-class ConfigService extends BaseService<ConfigServiceProxy, string> {
+class ConfigService extends BaseService<ConfigServiceProxy> {
     constructor(proxy: ConfigServiceProxy) {
         super(proxy)
     }
 }
 
 export
-class RegisterServerService extends BaseService<RegisterServerServiceProxy, string>  {
+class RegisterServerService extends BaseService<RegisterServerServiceProxy>  {
     proxy: RegisterServerServiceProxy
 
     constructor(proxy: RegisterServerServiceProxy) {
@@ -116,11 +116,12 @@ class RegisterServerService extends BaseService<RegisterServerServiceProxy, stri
 }
 
 export 
-class RegisterService extends BaseService<RegisterServiceProxy, {}> {
+class RegisterService extends BaseService<RegisterServiceProxy> {
+    proxy: RegisterServiceProxy
+
     constructor(sockname: string) {
         let pxy = RegisterService.socketDbus(null, sockname)
         super(pxy)
-        this.proxy = pxy
     }
 
     static socketDbus = (name: string | null, socket: string): RegisterServiceProxy => {

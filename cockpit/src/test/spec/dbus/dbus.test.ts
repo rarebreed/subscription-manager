@@ -1,9 +1,10 @@
 
 import * as CP from '../../../../src/types/cockpit.types'
-import { Observable } from 'rxjs/Observable'
 import 'rxjs/add/operator/mergeMap'
 import 'rxjs/add/operator/toPromise'
-import { socketDbus } from '../../../../src/libs/cockpit.helpers'
+import 'rxjs/add/operator/map'
+import { Observable } from 'rxjs/Observable'
+import 'rxjs/add/observable/fromPromise'
 import 'jasmine'
 
 const cockpit: CP.Cockpit = require('cockpit')
@@ -20,7 +21,7 @@ describe('Check that we can Register with subscription-manager', function() {
         // Create a stream of the Options (this will emulate data coming from the modal dialog)
         // FIXME: Note, these are real values from the Ethel stage server, which means I dont know if these tests 
         // should be released upstream, since upstream users will not have access.  Another alternative would be
-        // to point Register Server to a different 
+        // to point Register Server to a different candlepin instance
         let args = {
             user: '',
             org: '',
@@ -34,16 +35,26 @@ describe('Check that we can Register with subscription-manager', function() {
             }
         }
 
-        return Observable.fromPromise(regServerSvc.proxy.Start(navigator.language))
+        // Step 1. The stream contains an Observable which in turn was created from this.proxy.wait().  When we call
+        // mergeMap, the argument is an Observable<void> (because calling proxy.wait() returns a Promise<void>).  This
+        // means that when the proxy's wait() is done, it is ready to be used.  So we can call the proxy.Start()
+        return regServerSvc.stream.mergeMap(_ => regServerSvc.proxy.Start(navigator.language))
             .map(socket => {
-                // Step 1. Create a RegisterServiceProxy.  This proxy is a bit weird, in that it requires unusual args 
-                let socketPxy: CP.RegisterServiceProxy = socketDbus(null, socket)
-                console.log('Created Register Server Proxy')
-                // Step 2. Call the Register method from our Proxy, and return
-                return Observable.fromPromise(socketPxy.Register(args.org, args.user, args.pw, args.opts, args.connect))
+                // Step 2. Create a RegisterServiceProxy.  This proxy is a bit weird, in that it requires unusual args 
+                // The call from proxy.Start() returns an Observable<string> therefore socket is the address of the unix
+                // that was created
+                let regServ: CP.RegisterService = new CP.RegisterService(socket)
+                console.log('Created RegisterService')
+                // Step 3. We need to access the stream from regServ, which contains the Observable<void> that tells us
+                // when the proxy is ready. 
+                let { org, user, pw, opts, connect } = args
+                Observable.fromPromise(regServ.proxy.wait()).mergeMap(_ => {
+                    let r = regServ.proxy.Register(org, user, pw, opts, connect)
+                    return r
+                }) 
             })
-            .mergeMap(p => {
-                // Step 3. Since map() above returned an Observable<string>, we use mergeMap to pull out inner string
+            .map(p => {
+                // Step 4. Since map() above returned an Observable<string>, we use mergeMap to pull out inner string
                 console.log(`Response from DBus Register method: ${p}`)
                 return p
             })
