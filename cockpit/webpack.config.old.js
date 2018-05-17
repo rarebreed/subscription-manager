@@ -135,22 +135,43 @@ var plugins = [
 ];
 
 if (!production) {
-    /* copy jasmine files over */
+    console.log("Copying over files for testing")
     plugins.unshift(new copy([
         {
-            from: './spec/dbus/override.json',
-            to: 'override.json'
+            from: './src/test/manifest.json',
+            to: 'manifest.json'
         },
         {
-            from: './spec/dbus/DBusSpecRunner.html',
-            to: 'DBusSpecRunner.html'
+            from: './src/test/SpecRunner.html',
+            to: 'SpecRunner.html'
+        },
+        {
+            from: './node_modules/jasmine-core/lib/jasmine-core/jasmine.css',
+            to: 'jasmine/jasmine.css'
+        },
+        {
+            from: './node_modules/jasmine-core/lib/jasmine-core/jasmine.js',
+            to: 'jasmine/jasmine.js',
+        },
+        {
+            from: './node_modules/jasmine-core/lib/jasmine-core/jasmine-html.js',
+            to: 'jasmine/jasmine-html.js'
+        },
+        {
+            from: './node_modules/jasmine-core/lib/jasmine-core/boot.js',
+            to: 'jasmine/boot.js'
+        },
+        {
+            from: './node_modules/jasmine-core/images/jasmine_favicon.png',
+            to: 'jasmine/jasmine_favicon.png'
         }
     ]));
 }
 
+
 /* Only minimize when in production mode */
 if (production) {
-    /* Why are we doing this?  Webpack already does tree shaking
+    /* Why are we doing this?  Webpack 2+ already does tree shaking
     plugins.unshift(new webpack.optimize.UglifyJsPlugin({
         beautify: true,
         compress: {
@@ -178,7 +199,8 @@ module.exports = {
     module: {
         rules: [
             /* We will let the ts-loader (which calls the tsc compiler under the hood) to do es6 and jsx conversion for us
-               We will also use the tslint module do the linting. */
+               We will also use the tslint module do the linting.
+             */
             { 
                 enforce: 'pre',
                 exclude: /node_modules/,

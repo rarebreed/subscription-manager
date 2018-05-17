@@ -85,6 +85,27 @@ if (!production) {
     ]));
 }
 
+/* Only minimize when in production mode */
+if (production) {
+    /* Why are we doing this?  Webpack 2+ already does tree shaking
+    plugins.unshift(new webpack.optimize.UglifyJsPlugin({
+        beautify: true,
+        compress: {
+            warnings: false
+        },
+    }));
+    */
+
+    /* Rename output files when minimizing */
+    output.filename = "[name].min.js";
+
+    plugins.unshift(new CompressionPlugin({
+        asset: "[path].gz[query]",
+        test: /\.(js|html)$/,
+        minRatio: 0.9,
+        deleteOriginalAssets: true
+    }));
+}
 
 module.exports = {
     entry:  "./src/test/spec/dbus/dbus.test.ts",
@@ -100,7 +121,9 @@ module.exports = {
     },
     module: {
         rules: [
-            // all files with a '.ts' or '.tsx' extension will be handled by 'ts-loader'
+            /* We will let the ts-loader (which calls the tsc compiler under the hood) to do es6 and jsx conversion for us
+               We will also use the tslint module do the linting.
+             */
             { 
                 test: /\.tsx?$/, 
                 use: "ts-loader" 

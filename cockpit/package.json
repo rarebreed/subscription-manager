@@ -8,7 +8,7 @@
   "license": "LGPL-2.1",
   "scripts": {
     "build": "webpack",
-    "install": "export NODE_ENV=testing && yarn run clean && yarn run webpack && ./cockpit-link.sh",
+    "make": "export NODE_ENV=testing && yarn run clean && yarn run webpack && ./cockpit-link.sh",
     "po2json": "po2json",
     "vagrant-watch": "webpack --watch & vagrant rsync-auto",
     "watch": "webpack --watch",
@@ -17,7 +17,7 @@
   },
   "devDependencies": {
     "@types/jasmine": "^2.8.6",
-    "@types/node": "^9.4.7",
+    "@types/node": "^9.6.1",
     "babel-core": "^6.25.0",
     "babel-loader": "^7.0.0",
     "babel-plugin-transform-react-jsx": "^6.24.1",
@@ -53,6 +53,7 @@
     "@types/enzyme": "^3.1.9",
     "@types/react": "^16.0.40",
     "@types/react-dom": "^16.0.4",
+    "auctrix": "^1.1.1",
     "immutable": "^3.8.2",
     "jasmine": "^3.1.0",
     "jasmine-ts": "^0.2.1",

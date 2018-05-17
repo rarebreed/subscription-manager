@@ -1,7 +1,14 @@
 import { Observable } from 'rxjs/Observable'
 import 'rxjs/add/observable/fromPromise'
-import { Map as IMap } from 'immutable' 
+import { Map as IMap } from 'immutable'
+import { dispatch, Dispatch, StreamInfo } from 'auctrix'
+import { Logger } from 'auctrix/src/libs/logger'
 const cockpit: Cockpit = require('cockpit')
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+// module level logger
+////////////////////////////////////////////////////////////////////////////////////////////////
+const _logger = new Logger()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // _ServiceProxy interfaces
@@ -12,11 +19,11 @@ const cockpit: Cockpit = require('cockpit')
  * 
  */
 export interface DBusProxy {
-    proxy: <T>(iface?: string, path?: string) => T
-    wait: <T>(callback?: any) => Promise<T>
-    close: (code?: string) => void
-    options: DBusOptions
-    unique_name: string | null
+    proxy: <T>(iface?: string, path?: string) => T     // returns Object to access the dbus interface
+    wait: <T>(callback?: any) => Promise<T>            // when called, returns a promise for when proxy is ready
+    close: (code?: string) => void                     // when called, closes the proxy Object
+    options: DBusOptions                               // Options to open the proxy
+    unique_name: string | null                         // name to give this interface
     onclose?: Event
     onowner?: Event
     client: string
@@ -72,6 +79,14 @@ export interface RegisterConnectOptions {
     proxy_password?: string
 }
 
+export interface RegisterArgs {
+    org: string,
+    user: string,
+    pw: string,
+    opts: RegisterOptionsFull | {},
+    connect: RegisterConnectOptions | {}
+}
+
 export interface RegisterServiceProxy extends DBusProxy {
     Register: ( org: string
               , user: string
@@ -89,12 +104,16 @@ export interface RegisterServiceProxy extends DBusProxy {
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 abstract class BaseService<P extends DBusProxy> {
+    dispatch: Dispatch
     proxy: DBusProxy
-    stream: Observable<void>
+    readyStream: Observable<void>
+    logger: Logger
 
-    constructor(proxy: P) {
+    constructor(proxy: P, disp: Dispatch = dispatch, logger: Logger = _logger) {
+        this.dispatch = disp
         this.proxy = proxy
-        this.stream = Observable.fromPromise(this.proxy.wait())
+        this.readyStream = Observable.fromPromise(this.proxy.wait())
+        this.logger = logger
     }
 }
 
@@ -108,10 +127,46 @@ class ConfigService extends BaseService<ConfigServiceProxy> {
 export
 class RegisterServerService extends BaseService<RegisterServerServiceProxy>  {
     proxy: RegisterServerServiceProxy
+    dataStream: Observable<string>   // Returns the unix socket address
+    info: StreamInfo<string>
 
     constructor(proxy: RegisterServerServiceProxy) {
         super(proxy)
         this.proxy = proxy
+    }
+
+    start = (args: RegisterArgs) => {
+        this.dataStream = this.readyStream
+            .mergeMap(_ => {
+                this.logger.info('Calling proxy.Start()')
+                return this.proxy.Start(navigator.language)
+            })  // Step 1. Launch proxy.Start
+            .mergeMap(socket => {
+                // Step 2. Create a RegisterServiceProxy.  This proxy is a bit weird, in that it requires unusual args 
+                // The call from proxy.Start() returns an Observable<string> therefore socket is the address of the unix
+                // that was created
+                let regServ: RegisterService = new RegisterService(socket)
+                console.log('Created RegisterService')
+                // Step 3. We need to access the stream from regServ, which contains the Observable<void> that tells us
+                // when the proxy is ready. 
+                let { org, user, pw, opts, connect } = args
+                return Observable.fromPromise(regServ.proxy.wait()).mergeMap(_ => {
+                    let r = regServ.proxy.Register(org, user, pw, opts, connect)
+                    return r
+                }) 
+            })
+        // Step 4.  Register to dispatch
+        // Create a StreamInfo record type so we can register.  The generic type is same as type of Observable
+        this.info = {
+            component: 'RegisterServerService',
+            streamName: 'register-socket',
+            streamType: 'string',
+            action: 'mounted',
+            stream: this.dataStream
+        } as StreamInfo<string>
+        
+        this.dispatch.register(this.info)
+        return this.dataStream
     }
 }
 
